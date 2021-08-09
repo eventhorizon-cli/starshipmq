@@ -21,15 +21,18 @@ func (server *RemotingServer) Handle(handler func(*protocol.RemotingCommand) err
 }
 
 func (server *RemotingServer) Run() {
-	listener, err := net.Listen("tcp", server.config.Address)
+	var err error
+	var listener net.Listener
+	listener, err = net.Listen("tcp", server.config.Address)
 	if err != nil {
 		log.Fatal(err)
 	}
 	server.listener = listener
 
 	go func() {
+		var conn net.Conn
 		for {
-			conn, err := listener.Accept()
+			conn, err = listener.Accept()
 			if err != nil {
 				log.Println(err)
 				continue
