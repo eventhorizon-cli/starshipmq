@@ -18,13 +18,19 @@ func EncodeHeader(command *RemotingCommand) []byte {
 	return []byte{headerMark, byte(bodyLen >> 8), byte(bodyLen)}
 }
 
-func Decode(conn net.Conn) *RemotingCommand {
+func Decode(conn net.Conn) (*RemotingCommand, error) {
 	header := make([]byte, 3)
-	conn.Read(header)
+	_, err := conn.Read(header)
+	if err != nil {
+		return nil, err
+	}
 	bodyLen := binary.BigEndian.Uint16(header[1:3])
 	body := make([]byte, bodyLen)
-	conn.Read(body)
+	_, err = conn.Read(body)
+	if err != nil {
+		return nil, err
+	}
 	return &RemotingCommand{
 		Body: body,
-	}
+	}, nil
 }
