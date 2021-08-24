@@ -17,8 +17,10 @@ type remotingClient struct {
 }
 
 func (c *remotingClient) Invoke(ctx context.Context, addr string, command *protocol.RemotingCommand) error {
-	connPool := c.getOrCreateConnPool(addr)
-
+	connPool, err := c.getOrCreateConnPool(addr)
+	if err != nil {
+		return err
+	}
 	conn, err := connPool.Get(ctx)
 	defer connPool.Return(conn, err)
 
@@ -42,12 +44,12 @@ func (c *remotingClient) Close() {
 	}
 }
 
-func (c *remotingClient) getOrCreateConnPool(addr string) ConnPool {
+func (c *remotingClient) getOrCreateConnPool(addr string) (ConnPool, error) {
 	c.connPoolLocker.RLock()
 	pool, ok := c.connPools[addr]
 	c.connPoolLocker.RUnlock()
 	if ok {
-		return pool
+		return pool, nil
 	}
 
 	c.connPoolLocker.Lock()
@@ -55,17 +57,20 @@ func (c *remotingClient) getOrCreateConnPool(addr string) ConnPool {
 	// double check
 	pool, ok = c.connPools[addr]
 	if ok {
-		return pool
+		return pool, nil
 	}
 
-	pool = c.createConnPool(addr)
+	pool, err := c.createConnPool(addr)
+	if err != nil {
+		return nil, err
+	}
 	c.connPools[addr] = pool
 
-	return pool
+	return pool, nil
 }
 
-func (c *remotingClient) createConnPool(addr string) ConnPool {
-	return NewConnPool().
+func (c *remotingClient) createConnPool(addr string) (ConnPool, error) {
+	return NewConnPoolBuilder().
 		SetAddress(addr).
 		Build()
 }
